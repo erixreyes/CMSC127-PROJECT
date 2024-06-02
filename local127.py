@@ -4,7 +4,7 @@ from mysql.connector import Error
 db = mysql.connector.connect(
     host = "localhost",
     user = "root",
-    passwd = "bbcaleb13",
+    passwd = "" #passwordmo,
     database = "KRIMSTIX",
 )
 
