@@ -1,4 +1,5 @@
-# KRIMSTIX CMSC127-PROJECT
+# CMSC127-PROJECT
+## KRIMSTIX (ST-4L)
 ## CASTRO, GREGORIO, REYES
 
 ## Program Specs
@@ -42,3 +43,6 @@
 - set the proper mariaDB server in sql connector (in "db = mysql.connector.connect" line 4 and 14)
     - set host, user, and password of your system's mariaDB server
     - the program will automatically create a database and then is used afterwards
+
+#### TO RUN
+- simply type this command on your terminal, "python .\KRIMSTIX.py"

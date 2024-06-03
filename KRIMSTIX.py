@@ -33,14 +33,8 @@ FoodType = "CREATE TABLE IF NOT EXISTS food_item_food_type (food_type VARCHAR(15
 FoodReview = "CREATE TABLE IF NOT EXISTS food_review (review_id INT(5) PRIMARY KEY AUTO_INCREMENT, Date DATE DEFAULT CURRENT_DATE, Rating INT(1), Review VARCHAR(100), user_id INT(5), food_id INT(5), establishment_id INT(5), FOREIGN KEY (user_id) REFERENCES user(user_id), FOREIGN KEY (food_id) REFERENCES food_item(food_id),FOREIGN KEY (establishment_id) REFERENCES food_establishment(establishment_id))"
 #food_review TABLE
 EstabReview = "CREATE TABLE IF NOT EXISTS establishment_review (review_id INT(5) PRIMARY KEY AUTO_INCREMENT, Date DATE DEFAULT CURRENT_DATE, Rating INT(1), Review VARCHAR(100), User_id INT(5), establishment_id INT(5), FOREIGN KEY (user_id) REFERENCES user(user_id), FOREIGN KEY (establishment_id) REFERENCES food_establishment(establishment_id))"
-#establishment_review TABLE
-IsManagedByTable = "CREATE TABLE IF NOT EXISTS is_managed_by (review_id INT(5), user_id INT(5), FOREIGN KEY (review_id) REFERENCES food_review(review_id), FOREIGN KEY (user_id) REFERENCES user(user_id))"
-#is_authorized_food TABLE
-IsAuthorizedFoodTable = "CREATE TABLE IF NOT EXISTS is_authorized_food (user_id INT(5), food_id INT(5), FOREIGN KEY (user_id) REFERENCES user(user_id), FOREIGN KEY (food_id) REFERENCES food_item(food_id))"
-#is_authorized_establishment TABLE
-IsAuthorizedEstabTable = "CREATE TABLE IF NOT EXISTS is_authorized_establishment (user_id INT(5), establishment_id INT(5), FOREIGN KEY (establishment_id) REFERENCES food_establishment(establishment_id), FOREIGN KEY (user_id) REFERENCES user(user_id))"
 
-tables = [UserTable, FoodEstabTable, FoodItemTable, FoodType, FoodReview, EstabReview, IsManagedByTable, IsAuthorizedFoodTable, IsAuthorizedEstabTable]
+tables = [UserTable, FoodEstabTable, FoodItemTable, FoodType, FoodReview, EstabReview]
 for table in tables:
     mycursor.execute(table)
 
@@ -150,9 +144,6 @@ Name: {real_name}
             return
 
         delete_queries = [ # delete related records
-            "DELETE FROM is_managed_by WHERE user_id = %s",
-            "DELETE FROM is_authorized_food WHERE user_id = %s",
-            "DELETE FROM is_authorized_establishment WHERE user_id = %s",
             "DELETE FROM establishment_review WHERE user_id = %s",
             "DELETE FROM food_review WHERE user_id = %s",
             "DELETE FROM user WHERE user_id = %s"
@@ -243,7 +234,7 @@ def add_estab_review(user_id):  #create a establishment review
 
         insert_query = """
         INSERT INTO establishment_review (Rating, Review, user_id, establishment_id)
-        VALUES (%s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s)
         """
         mycursor.execute(insert_query, (rating, review, user_id, establishment_id))
         db.commit()
@@ -333,7 +324,7 @@ def delete_estab_review(user_id):   #deletes an existing establishment review
             reviews = mycursor.fetchall()
 
             if not reviews:
-                print("No reviews found for this food item in this establishment.")
+                print("No reviews found for this establishment.")
                 return
 
             print("Existing Reviews for the Establishment:")
@@ -613,29 +604,20 @@ def delete_food_establishment():    #deletes a food establishment as well as rel
             establishment_id = input("Enter the ID of the establishment to delete: ")
 
             # Delete queries from affected tables
-            delete_query1 = "DELETE FROM is_authorized_establishment WHERE establishment_id = %s"
+            delete_query1 = "DELETE FROM establishment_review WHERE establishment_id = %s"
             mycursor.execute(delete_query1, (establishment_id,))
 
-            delete_query2 = "DELETE FROM is_authorized_food WHERE food_id IN (SELECT food_id FROM food_item WHERE establishment_id = %s)"
+            delete_query2 = "DELETE FROM food_review WHERE establishment_id = %s"
             mycursor.execute(delete_query2, (establishment_id,))
 
-            delete_query3 = "DELETE FROM is_managed_by WHERE review_id IN (SELECT review_id FROM food_review WHERE establishment_id = %s)"
+            delete_query3 = "DELETE FROM food_item_food_type WHERE food_id IN (SELECT food_id FROM food_item WHERE establishment_id = %s)"
             mycursor.execute(delete_query3, (establishment_id,))
 
-            delete_query4 = "DELETE FROM establishment_review WHERE establishment_id = %s"
+            delete_query4 = "DELETE FROM food_item WHERE establishment_id = %s"
             mycursor.execute(delete_query4, (establishment_id,))
 
-            delete_query5 = "DELETE FROM food_review WHERE establishment_id = %s"
+            delete_query5 = "DELETE FROM food_establishment WHERE establishment_id = %s"
             mycursor.execute(delete_query5, (establishment_id,))
-
-            delete_query6 = "DELETE FROM food_item_food_type WHERE food_id IN (SELECT food_id FROM food_item WHERE establishment_id = %s)"
-            mycursor.execute(delete_query6, (establishment_id,))
-
-            delete_query7 = "DELETE FROM food_item WHERE establishment_id = %s"
-            mycursor.execute(delete_query7, (establishment_id,))
-
-            delete_query8 = "DELETE FROM food_establishment WHERE establishment_id = %s"
-            mycursor.execute(delete_query8, (establishment_id,))
 
             db.commit()
 
@@ -789,9 +771,6 @@ def delete_food_item(): #delete an existing food item
             food_id = input("Enter the ID of the food item to delete: ")
 
             # Delete queries from affected tables
-            delete_query1 = "DELETE FROM is_authorized_food WHERE food_id = %s"
-            mycursor.execute(delete_query1, (food_id,))
-
             delete_query2 = "DELETE FROM food_item_food_type WHERE food_id = %s"
             mycursor.execute(delete_query2, (food_id,))
 
