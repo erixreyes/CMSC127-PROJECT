@@ -227,7 +227,180 @@ def update_average_rating(establishment_id):
     mycursor.execute(update_query, (establishment_id, establishment_id))
     db.commit()
 
+#CRUD FOOD ESTABLISHMENT REVIEWS
+def add_estab_review(user_id):
+    try:
+        mycursor.execute("SELECT establishment_id, establishment_name FROM food_establishment")
+        establishments = mycursor.fetchall()
+        if not establishments:
+            print("No establishments found.")
+            return
 
+        print("Available Establishments:")
+        for est_id, name in establishments:
+            print(f"ID: {est_id}, Name: {name}")
+
+        # User selects an establishment
+        establishment_id = input("Enter the ID of the establishment: ")
+
+        rating = int(input("Enter your rating (1-5): "))
+        review = input("Enter your review (up to 100 characters): ")
+
+        # Insert the new review
+        insert_query = """
+        INSERT INTO establishment_review (Rating, Review, user_id, establishment_id)
+        VALUES (%s, %s, %s, %s, %s)
+        """
+        mycursor.execute(insert_query, (rating, review, user_id, establishment_id))
+        db.commit()
+
+        update_average_rating(establishment_id)
+
+        print("New review added successfully!")
+
+    except Exception as e:
+        print("An error occurred while adding the review:", e)
+        db.rollback()
+
+def update_estab_review(user_id):
+    try:
+        # Display all reviews made by the user
+        query = """
+        SELECT e.review_id, fe.establishment_id, fe.establishment_name, fi.food_name, e.Review, e.Rating
+        FROM establishment_review e
+        JOIN food_establishment fe ON e.establishment_id = fe.establishment_id
+        WHERE e.user_id = %s
+        """
+        mycursor.execute(query, (user_id,))
+        reviews = mycursor.fetchall()
+        
+        if not reviews:
+            print("No reviews found for this user.")
+            return
+
+        print("Existing Establishment Reviews:")
+        for review_id, establishment_id, establishment_name, review, rating in reviews:
+            print(f"Review ID: {review_id}, Establishment: {establishment_name}, Review: {review}, Rating: {rating}")
+
+        # User selects the review to update
+        review_id = input("Enter the Review ID you want to update: ")
+
+        # Check if the selected review_id is valid
+        selected_review = next((r for r in reviews if str(r[0]) == review_id), None)
+        if not selected_review:
+            print("Invalid Review ID selected.")
+            return
+
+        # User inputs for updating the review
+        new_review = input("Enter your new review (up to 100 characters): ")
+        new_rating = int(input("Enter your new rating (1-5): "))
+
+        # Update the review details
+        update_query = """
+        UPDATE establishment_review
+        SET Review = %s, Rating = %s
+        WHERE review_id = %s
+        """
+        mycursor.execute(update_query, (new_review, new_rating, review_id))
+        db.commit()
+
+        # Update the average rating for the establishment
+        update_average_rating(establishment_id)  # Using establishment_id from the selected review
+
+        print("Review updated successfully!")
+
+    except Exception as e:
+        print("An error occurred while updating the review:", e)
+        db.rollback()
+
+def delete_estab_review(user_id):
+    try:
+        if isAdmin:
+            mycursor.execute("SELECT establishment_id, establishment_name FROM food_establishment")
+            establishments = mycursor.fetchall()
+            if not establishments:
+                print("No establishments found.")
+                return
+
+            print("Available Establishments:")
+            for est_id, name in establishments:
+                print(f"ID: {est_id}, Name: {name}")
+
+        # User selects an establishment
+            establishment_id = input("Enter the ID of the establishment: ")
+            # Display existing reviews for the selected food item
+
+            query = """
+            SELECT f.review_id, f.Review, f.Rating, f.Date, u.username
+            FROM establishment_review f
+            LEFT JOIN user u ON f.user_id = u.user_id
+            WHERE f.establishment_id=%s"""
+
+            mycursor.execute(query, (establishment_id))
+            reviews = mycursor.fetchall()
+
+            if not reviews:
+                print("No reviews found for this food item in this establishment.")
+                return
+
+            print("Existing Reviews for the Establishment:")
+            for review_id, review, rating, date, username in reviews:
+                print(f"Review ID: {review_id}, Username: {username}, Review: {review}, Rating: {rating}, Date: {date}")
+
+        else: 
+
+            query = """
+            SELECT fr.review_id, fe.establishment_name, fr.Rating
+            FROM establishment_review fr
+            JOIN food_establishment fe ON fr.establishment_id = fe.establishment_id
+            WHERE fr.user_id = %s
+            """
+            mycursor.execute(query, (user_id))
+            reviews = mycursor.fetchall()
+
+            if not reviews:
+                print("No reviews found for this user.")
+                return
+
+            print("Existing Establishment Reviews:")
+            for review_id, establishment_name, food_name, rating in reviews:
+                print(f"Review ID: {review_id}, Establishment: {establishment_name}, Food Item: {food_name}, Rating: {rating}")
+
+        # User selects the review to delete
+        review_id = input("Enter the Review ID you want to delete: ")
+
+        # Delete the review
+        delete_query = "DELETE FROM establishment_review WHERE review_id = %s"
+        mycursor.execute(delete_query, (review_id,))
+        db.commit()
+
+        if mycursor.rowcount == 0:
+            print("No review found with that ID.")
+        else:
+            if isAdmin:
+                # For admins, update the average rating of the selected establishment
+                update_average_rating(establishment_id)
+            else:
+                # For regular users, find the establishment_id related to the deleted review
+                establishment_id_query = """
+                SELECT establishment_id
+                FROM establishment_review
+                WHERE review_id = %s
+                """
+                mycursor.execute(establishment_id_query, (review_id,))
+                establishment_id_result = mycursor.fetchone()
+
+                if establishment_id_result:
+                    update_average_rating(establishment_id_result[0])
+
+            print("Review deleted successfully!")
+
+    except Exception as e:
+        print("An error occurred while deleting the review:", e)
+        db.rollback()
+
+
+#CRUD FOOD REVIEW
 def add_food_review(user_id):
     establishment_id, food_id = select_establishment_and_food()
     if not establishment_id or not food_id:
@@ -1034,14 +1207,15 @@ def foodReview(user_id, isAdmin):
 
 
 
-def foodEstablishment(isAdmin):
+def foodEstablishment(user_id, isAdmin):
     if isAdmin:
         print("""
         1. Add a Food Establishment
         2. Search a Food Establishment 
         3. Update an exitsting Food Establishment
         4. Delete an exitsting Food Establishment
-        5. Back
+        5. Delete an existing Establishment review
+        6. Back
         """)
         choice = input("Enter your choice: ")
     
@@ -1054,19 +1228,30 @@ def foodEstablishment(isAdmin):
         elif choice == '4':
             delete_food_establishment()
         elif choice == '5':
+            delete_estab_review(user_id)
+        elif choice == '6':
             menu
         else:
             print("Invalid choice. Please enter a number between 1 and 5.")
     else:
         print("""
-        1. Search a Food item
-        2. Back
+        1. Review a Food Establishment
+        2. Update an existing Establishment review
+        3. Delete an existing Establishment review
+        4. Search a Food Establishment
+        5. Back
         """)
         choice = input("Enter your choice: ")
 
         if choice == '1':
-            search_food_item()
+            add_estab_review(user_id)
         elif choice == '2':
+            update_estab_review(user_id)
+        elif choice == '3':
+            delete_estab_review(user_id) 
+        elif choice == '4':
+            search_food_establishment()    
+        elif choice == '5':
             menu    
 
 def foodItem(isAdmin):
@@ -1176,7 +1361,7 @@ def menu():
             if choice == '1':
                 foodReview(user_id, isAdmin)
             elif choice == '2':
-                foodEstablishment(isAdmin)
+                foodEstablishment(user_id, isAdmin)
             elif choice == '3':
                 foodItem(isAdmin)
             elif choice == '4':
@@ -1203,7 +1388,7 @@ def menu():
             if choice == '1':
                 foodReview(user_id, isAdmin)
             elif choice == '2':
-                foodEstablishment(isAdmin)
+                foodEstablishment(user_id, isAdmin)
             elif choice == '3':
                 foodItem(isAdmin)
             elif choice == '4':
